@@ -144,6 +144,57 @@ WEB Digest Algorithm  - MD5
 
 :::
 
+<details>
+  <summary>Example Config</summary>
+
+:::tip
+
+Hikvision cameras with a speaker support two way audio via go2rtc and other applications. It is important that the RTSP stream is still used for video and listen audio; a secondary [ISAPI](https://github.com/AlexxIT/go2rtc/tree/master/internal/isapi) source can be added that will be using for the two way audio only. Cameras without a speaker should omit the ISAPI source.
+
+NOTE: The ISAPI source can not be prefixed with `ffmpeg:`, as go2rtc needs to handle the stream to support two way audio.
+
+Ensure HTTP is enabled on the camera. For two way talk, set the camera audio encoding to G.711ulaw or G.711alaw and use `ffmpeg:` to re-encode to AAC / Opus for Frigate (the AAC `ffmpeg:` line is not needed if the camera itself is already set to AAC). go2rtc's ISAPI source currently only supports G.711 for talk-back ([AlexxIT/go2rtc#1911](https://github.com/AlexxIT/go2rtc/issues/1911)); setting the camera to AAC improves listen quality but two way talk will not work. Broader codec / backchannel support may be added in a future version of go2rtc. To use two way talk with Frigate, see the [Live view documentation](/configuration/live#two-way-talk).
+
+:::
+
+```yaml
+go2rtc:
+  streams:
+    # example for connecting to a standard Hikvision camera (no two way talk)
+    your_hikvision_camera:
+      - rtsp://username:password@camera_ip/Streaming/Channels/101
+      - ffmpeg:your_hikvision_camera#audio=aac
+      - ffmpeg:your_hikvision_camera#audio=opus
+    your_hikvision_camera_sub:
+      - rtsp://username:password@camera_ip/Streaming/Channels/102
+    # example for connecting to a Hikvision camera that supports two way talk
+    # set the camera audio encoding to G.711ulaw / G.711alaw
+    your_hikvision_camera_twt:
+      - rtsp://username:password@camera_ip/Streaming/Channels/101#backchannel=0
+      - ffmpeg:your_hikvision_camera_twt#audio=aac
+      - ffmpeg:your_hikvision_camera_twt#audio=opus
+      - isapi://username:password@camera_ip:80/
+    your_hikvision_camera_twt_sub:
+      - rtsp://username:password@camera_ip/Streaming/Channels/102#backchannel=0
+      - ffmpeg:your_hikvision_camera_twt_sub#audio=aac
+      - ffmpeg:your_hikvision_camera_twt_sub#audio=opus
+
+cameras:
+  your_hikvision_camera:
+    ffmpeg:
+      inputs:
+        - path: rtsp://127.0.0.1:8554/your_hikvision_camera
+          input_args: preset-rtsp-restream
+          roles:
+            - record
+        - path: rtsp://127.0.0.1:8554/your_hikvision_camera_sub
+          input_args: preset-rtsp-restream
+          roles:
+            - detect
+```
+
+</details>
+
 ### Reolink Cameras
 
 Reolink has many different camera models with inconsistently supported features and behavior. The below table shows a summary of various features and recommendations.
